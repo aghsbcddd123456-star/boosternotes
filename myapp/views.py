@@ -336,9 +336,18 @@ def all_categories(request):
 # ── Category Courses (public) ───────────────────────────────────────────────────────
 def category_courses_view(request, category_id):
     category = get_object_or_404(Category, id=category_id, is_active=True)
-    elibrary_courses = ELibraryModel.objects.filter(category=category, is_active=True).select_related('category').only('id', 'name', 'current_price', 'original_price', 'thumbnail', 'dropbox_thumbnail_path', 'dropbox_thumbnail_url_cached', 'dropbox_thumbnail_url_expires', 'category_id')
-    hardcopy_courses = HardBook.objects.filter(is_active=True).prefetch_related(Prefetch('images', queryset=HardBookImage.objects.order_by('uploaded_at'))) if hasattr(HardBook, 'category') else []
+
+    def _elibrary_query():
+        return ELibraryModel.objects.filter(category=category, is_active=True).select_related('category').only('id', 'name', 'current_price', 'original_price', 'thumbnail', 'dropbox_thumbnail_path', 'dropbox_thumbnail_url_cached', 'dropbox_thumbnail_url_expires', 'category_id')
+
+    elibrary_courses = _elibrary_query()
     total_courses = elibrary_courses.count()
+    if total_courses:
+        _warm_dropbox_cache(list(elibrary_courses), 'thumbnail_url')
+        # Re-fetch: the property's cache-write updates the DB row via .update(),
+        # which doesn't touch these in-memory instances (see home()).
+        elibrary_courses = _elibrary_query()
+    hardcopy_courses = HardBook.objects.filter(is_active=True).prefetch_related(Prefetch('images', queryset=HardBookImage.objects.order_by('uploaded_at'))) if hasattr(HardBook, 'category') else []
     return render(request, 'category_courses.html', {'category': category, 'elibrary_courses': elibrary_courses, 'hardcopy_courses': hardcopy_courses, 'total_courses': total_courses, 'navbar': _get_navbar(), 'footer': _get_footer(), 'cart_count': len(request.session.get('cart', {}))})
 
 
@@ -347,7 +356,16 @@ def search(request):
     query = request.GET.get('q', '').strip()
     if query:
         category_results = Category.objects.filter(name__icontains=query, is_active=True)
-        elibrary_results = ELibraryModel.objects.filter(name__icontains=query, is_active=True).select_related('category').only('id', 'name', 'current_price', 'original_price', 'thumbnail', 'dropbox_thumbnail_path', 'dropbox_thumbnail_url_cached', 'dropbox_thumbnail_url_expires', 'category_id')
+
+        def _elibrary_query():
+            return ELibraryModel.objects.filter(name__icontains=query, is_active=True).select_related('category').only('id', 'name', 'current_price', 'original_price', 'thumbnail', 'dropbox_thumbnail_path', 'dropbox_thumbnail_url_cached', 'dropbox_thumbnail_url_expires', 'category_id')
+
+        elibrary_results = _elibrary_query()
+        if elibrary_results.exists():
+            _warm_dropbox_cache(list(elibrary_results), 'thumbnail_url')
+            # Re-fetch: the property's cache-write updates the DB row via .update(),
+            # which doesn't touch these in-memory instances (see home()).
+            elibrary_results = _elibrary_query()
         hardbook_results = HardBook.objects.filter(title__icontains=query, is_active=True).prefetch_related(Prefetch('images', queryset=HardBookImage.objects.order_by('uploaded_at')))
     else:
         category_results = Category.objects.none()
@@ -386,7 +404,15 @@ def hard_books_public(request):
 
 # ── E-Library Public Dashboard ────────────────────────────────────────────────────────
 def elibrary_public(request):
-    courses = ELibraryModel.objects.filter(is_active=True).select_related('category').order_by('-created_at')
+    def _courses_query():
+        return ELibraryModel.objects.filter(is_active=True).select_related('category').order_by('-created_at')
+
+    courses = list(_courses_query())
+    _warm_dropbox_cache(courses, 'thumbnail_url')
+    if courses:
+        # Re-fetch: the property's cache-write updates the DB row via .update(),
+        # which doesn't touch these in-memory instances (see home()).
+        courses = list(_courses_query())
     return render(request, 'elibrary_public.html', {
         'courses': courses,
         'navbar': _get_navbar(),

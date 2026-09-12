@@ -14,7 +14,7 @@ SECRET_KEY = 'django-insecure-g)(h61zja22%r+hx-l=x2jia$agp8_a+)+_p7nx7sb!r)b(f15
 # every SQL query keep a full traceback in memory for the life of the
 # request — real, measurable overhead on every page. Export DEBUG=true
 # locally if you want Django's debug error pages while developing.
-DEBUG = True
+DEBUG = os.environ.get('DEBUG', 'False').lower() == 'true'
 
 ALLOWED_HOSTS = ['*']
 

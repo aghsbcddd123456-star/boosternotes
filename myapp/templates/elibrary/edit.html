@@ -67,9 +67,9 @@
           <label>Thumbnail Image</label>
           {{ form.thumbnail }}
           <div class="custom-error">{{ form.thumbnail.errors }}</div>
-          {% if course.thumbnail %}
+          {% if course.thumbnail_url %}
           <div style="margin-top: 8px;">
-            <img src="{{ course.thumbnail.url }}" style="width: 100px; height: 100px; object-fit: cover; border-radius: 8px;">
+            <img src="{{ course.thumbnail_url }}" style="width: 100px; height: 100px; object-fit: cover; border-radius: 8px;">
             <small style="color: #888; display: block; margin-top: 4px;">Current thumbnail</small>
           </div>
           {% endif %}

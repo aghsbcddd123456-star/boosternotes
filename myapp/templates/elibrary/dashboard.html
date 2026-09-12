@@ -68,8 +68,8 @@
             {% for course in courses %}
             <tr>
               <td>
-                {% if course.thumbnail %}
-                <img src="{{ course.thumbnail.url }}" style="width: 50px; height: 50px; object-fit: cover; border-radius: 6px;">
+                {% if course.thumbnail_url %}
+                <img src="{{ course.thumbnail_url }}" style="width: 50px; height: 50px; object-fit: cover; border-radius: 6px;">
                 {% else %}
                 <div style="width: 50px; height: 50px; background: #f0f0f0; border-radius: 6px;"></div>
                 {% endif %}
